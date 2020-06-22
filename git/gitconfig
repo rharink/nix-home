@@ -1,0 +1,198 @@
+[core]
+    excludesfile = ~/.gitignore
+    editor = vim
+    autocrlf = input
+    safecrlf = warn
+    #pager = less -Mi -+F
+    pager = delta --plus-color="#012800" --minus-color="#340001" --theme='Monokai Extended'
+    attributesfile = ~/.gitattributes
+
+[interactive]
+    diffFilter = delta --color-only
+
+[apply]
+    whitespace = fix
+
+[help]
+    autocorrect = 1
+
+[push]
+    default = simple
+
+[filter "lfs"]
+    clean = git-lfs clean -- %f
+    smudge = git-lfs smudge -- %f
+    process = git-lfs filter-process
+    required = true
+
+[transfer]
+    fsckObjects = false
+
+[diff]
+    tool = vimdiff
+
+[grep]
+    extendedRegexp = true
+
+[merge]
+    tool = vimdiff
+    # Make 'git fetch; git merge' behave like 'git pull' on the
+    # current branch.
+    defaultToUpstream = true
+
+[color]
+    ui = auto
+
+[log]
+    # Show times in my time zone.
+    date = relative
+
+[alias]
+    # commit count
+    count             = !git shortlog -sn
+
+    # force-with-lease option is far more polite.
+    # it checks that your local copy of the ref that you’re overwriting is
+    # up-to-date before overwriting it. This indicates that you’ve at least
+    # fetched the changes you’re about to stomp.
+    please = push --force-with-lease
+
+    # Ever commit and then immediately realize you’d forgotten to stage a file?
+    # git commend quietly tacks any staged files onto the last commit you
+    # created, re-using your existing commit message. So as long as you haven’t
+    # pushed yet, no-one will be the wiser.
+    commend = commit --amend --no-edit
+
+    # The first commit of a repository can not be rebased like regular commits,
+    # so it’s good practice to create an empty commit as your repository root.
+    # git it both initializes your repository and creates an empty root commit
+    # in one quick step.
+    it = !git init && git commit -m “root” --allow-empty
+
+    # git stsh    -> stash only unstaged changes to tracked files
+    # git stash   -> stash any changes to tracked files
+    # git staash  -> stash untracked and tracked files
+    # git staaash -> stash ignored, untracked, and tracked files
+    stsh = stash --keep-index
+    staash = stash --include-untracked
+    staaash = stash --all
+
+    # git merc uses the --no-ff strategy, to always create a merge commit.
+    merc = merge --no-ff
+
+    # push including tags that are connected to the current branch.
+    pushtags = push --follow-tags
+
+    # prune local tags that do not exist on remote
+    prunetags = !git tag -l | xargs git tag -d && git fetch -t
+
+    # tree, graphical log
+    tree = log --graph --abbrev-commit --decorate --all --format=format:\"%C(bold blue)%h%C(reset) - %C(bold cyan)%aD%C(dim white) - %an%C(reset) %C(bold green)(%ar)%C(reset)%C(bold yellow)%d%C(reset)%n %C(white)%s%C(reset)\"
+
+    ######################################################################
+    # Clean up whitespace.
+    #
+    # See
+    # http://stackoverflow.com/questions/591923/make-git-automatically-remove
+    # -trailing-whitespace-before-committing/15398512#15398512
+    ######################################################################
+
+    # Check that it's safe to fix whitespace.
+    #
+    # Called by whitespace fixers below.
+    fixws-is-safe = !"\
+    if [ -d \"$(git rev-parse --git-dir)/rebase-merge\" ] ; then \
+        echo \"Rebase in progress; can't 'git fixws'!\" ; \
+        false ; \
+    fi"
+
+    # Fix whitespace in the index while preserving a dirty tree, if
+    # any.
+    #
+    # Assuming your index is empty, some useful variations are:
+    #
+    # - fix whitespace in all changes in all versioned files:
+    #
+    #     git add -u :/ && git fixws && git reset
+    #
+    # - fix whitespace in all unversioned files and in all changes in
+    #   all versioned files:
+    #
+    #     git add --all :/ && git fixws && git reset
+    #
+    # Logic:
+    #
+    # The 'git stash save' fails if the tree is clean (instead of
+    # creating an empty stash :P). So, we only 'stash' and 'pop' if
+    # the tree is dirty.
+    #
+    # The 'git rebase --whitespace=fix HEAD~' throws away the commit
+    # if it's empty, and adding '--keep-empty' prevents the whitespace
+    # from being fixed. So, we first check that the index is dirty.
+    #
+    # Also:
+    # - '(! git diff-index --quiet --cached HEAD)' is true (zero) if
+    #   the index is dirty
+    # - '(! git diff-files --quiet .)' is true if the tree is dirty
+    #
+    # The 'rebase --whitespace=fix' trick is from here:
+    # http://stackoverflow.com/a/19156679/470844
+    fixws = !"\
+    git fixws-is-safe && \
+    if (! git diff-files --quiet .) && \
+        (! git diff-index --quiet --cached HEAD) ; then \
+        git commit -m FIXWS_SAVE_INDEX && \
+        git stash save FIXWS_SAVE_TREE && \
+        git rebase --whitespace=fix HEAD~ && \
+        git stash pop && \
+        git reset --soft HEAD~ ; \
+    elif (! git diff-index --quiet --cached HEAD) ; then \
+        git commit -m FIXWS_SAVE_INDEX && \
+        git rebase --whitespace=fix HEAD~ && \
+        git reset --soft HEAD~ ; \
+    fi"
+
+    # Fix whitespace in the index and the tree.
+    #
+    # Precede with 'git add -N <files>' to also fix whitespace in
+    # unversioned files <files>.
+    #
+    # Logic:
+    #
+    # The different cases are:
+    # - dirty tree and dirty index
+    # - dirty tree and clean index
+    # - clean tree and dirty index
+    #
+    # We have to consider separate cases because the 'git rebase
+    # --whitespace=fix' is not compatible with empty commits (adding
+    # '--keep-empty' makes Git not fix the whitespace :P).
+    fixws-global-tree-and-index = !"\
+    git fixws-is-safe && \
+    if (! git diff-files --quiet .) && \
+        (! git diff-index --quiet --cached HEAD) ; then \
+        git commit -m FIXWS_SAVE_INDEX && \
+        git add -u :/ && \
+        git commit -m FIXWS_SAVE_TREE && \
+        git rebase --whitespace=fix HEAD~2 && \
+        git reset HEAD~ && \
+        git reset --soft HEAD~ ; \
+    elif (! git diff-files --quiet .) ; then \
+        git add -u :/ && \
+        git commit -m FIXWS_SAVE_TREE && \
+        git rebase --whitespace=fix HEAD~ && \
+        git reset HEAD~ ; \
+    elif (! git diff-index --quiet --cached HEAD) ; then \
+        git commit -m FIXWS_SAVE_INDEX && \
+        git rebase --whitespace=fix HEAD~ && \
+        git reset --soft HEAD~ ; \
+    fi"
+
+# Local/private config goes in the include
+[include]
+    path = ~/.gitconfig.local
+
+[github]
+    user = rharink
+[pull]
+    rebase = true
