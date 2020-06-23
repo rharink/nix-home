@@ -94,8 +94,8 @@ with lib;
     firefox
     mysql-workbench
     postman
-    jetbrains.phpstorm
-    jetbrains.clion
+    unstable.jetbrains.phpstorm
+    unstable.jetbrains.clion
 
     # Network
     #openconnect
