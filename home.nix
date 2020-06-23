@@ -93,6 +93,7 @@ with lib;
     google-chrome
     firefox
     mysql-workbench
+    postman
     jetbrains.phpstorm
     jetbrains.clion
 
@@ -226,5 +227,9 @@ with lib;
       };
       recursive = true;
     };
+
+    ".npmrc".text = ''
+      prefix=~/.npm
+    '';
   };
 }
