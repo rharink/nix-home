@@ -12,6 +12,7 @@ let
 
 in {
   home.packages = [
+    python3 # treemacs wants this
     custom-emacs
   ];
 
