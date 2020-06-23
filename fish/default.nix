@@ -57,7 +57,7 @@ in {
       source ~/.localrc
 
       # Use nix
-      fenv "source ~/.nix-profile/etc/profile.d/nix.sh"
+      #fenv "source ~/.nix-profile/etc/profile.d/nix.sh"
       eval (direnv hook fish)
 
     '';
@@ -85,6 +85,14 @@ in {
       gpg-connect-agent updatestartuptty /bye > /dev/null 2>&1
       set -x SSH_AUTH_SOCK (gpgconf --list-dirs agent-ssh-socket)
     '';
+
+    ".config/fish/functions/fenv.fish".source = ./functions/fenv.fish;
+    ".config/fish/functions/fenv.apply.fish".source = ./functions/fenv.apply.fish;
+    ".config/fish/functions/fenv.main.fish".source = ./functions/fenv.main.fish;
+    ".config/fish/functions/fenv.parse.after.fish".source = ./functions/fenv.parse.after.fish;
+    ".config/fish/functions/fenv.parse.before.fish".source = ./functions/fenv.parse.before.fish;
+    ".config/fish/functions/fenv.parse.diff.fish".source = ./functions/fenv.parse.diff.fish;
+    ".config/fish/functions/fenv.parse.divider.fish".source = ./functions/fenv.parse.divider.fish;
   };
 
   programs.fish.shellAliases = {

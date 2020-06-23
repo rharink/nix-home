@@ -25,6 +25,9 @@ with lib;
 
   imports = [
     ./fish
+    # TODO: Running containers is a mess on NixOS
+    #./podman
+    ./emacs
     ./htop.nix
     ./tmux.nix
   ];
@@ -35,10 +38,10 @@ with lib;
     pkgs.wget
     pkgs.glibcLocales
     pkgs.gnupg
+    pkgs.gcc
     pkgs.ripgrep
-    pkgs.libvterm 
-    pkgs.libtool
     pkgs.cmake
+    pkgs.gnumake
     pkgs.editorconfig-checker
     pkgs.editorconfig-core-c
     pkgs.direnv
@@ -56,13 +59,14 @@ with lib;
     pkgs.brig
     pkgs.ipfs
 
-    # Editors
-    # TODO: I still configure doom emacs by hand
-    pkgs.emacs
-    
     # Shell
-    pkgs.termite
     pkgs.tmux
+
+    # Gnome
+    gnomeExtensions.dash-to-dock
+    gnomeExtensions.dash-to-panel
+    gnomeExtensions.system-monitor
+    gnome3.gnome-tweaks
 
     # Overview
     pkgs.htop
@@ -78,13 +82,24 @@ with lib;
     pkgs.rtv # Reddit
 
     # Programs
-    # pkgs.vscode
-    # pkgs.sublime3
-    # pkgs.sublime-merge
-    # pkgs.keybase
-    # pkgs.keybase-gui
+    unstable.slack
+    pkgs.vscode
+    pkgs.sublime3
+    pkgs.sublime-merge
+    pkgs.keybase
+    pkgs.keybase-gui
     hledger-ui
     hledger-web
+    google-chrome
+    firefox
+    mysql-workbench
+    jetbrains.phpstorm
+    jetbrains.clion
+
+    # Network
+    #openconnect
+    #openvpn
+    nmap
 
     # Writing
     pkgs.pandoc
@@ -93,9 +108,13 @@ with lib;
 
     # Other
     pkgs.jq
+    pkgs.httpie
     pkgs.mosh
     pkgs.xclip
+    pkgs.tlp
   ];
+
+  services.lorri.enable = true;
 
   programs.git.delta.enable = true;
 
@@ -179,7 +198,9 @@ with lib;
     };
   };
 
-  programs.command-not-found.enable = true;
+  programs.alacritty = {
+    enable = true;
+  };
 
   services.gpg-agent = {
     enable = true;
@@ -187,12 +208,23 @@ with lib;
     enableSshSupport = true;
   };
 
-  services.lorri.enable = true;
+
 
   home.file = {
     ".config/git/gitmessage".source = ./git/gitmessage;
     ".config/git/gitignore".source = ./git/gitignore;
-    # TODO: use programs.alacritty, but this giver errors on fedora32
+
+    # TODO: use programs.alacritty
     ".config/alacritty/alacritty.yml".source = ./alacritty/alacritty.yml;
+
+    ".config/base16-shell" = {
+      source = fetchFromGitHub {
+        owner = "chriskempson";
+        repo = "base16-shell";
+        rev = "ce8e1e540367ea83cc3e01eec7b2a11783b3f9e1";
+        sha256 = "1yj36k64zz65lxh28bb5rb5skwlinixxz6qwkwaf845ajvm45j1q";
+      };
+      recursive = true;
+    };
   };
 }

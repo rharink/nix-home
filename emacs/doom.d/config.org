@@ -1,0 +1,618 @@
+#+TITLE: Doom Emacs Configuration
+#+AUTHOR: rharink
+#+PROPERTY: header-args:emacs-lisp :tangle yes :cache yes :results silent :comments link
+#+PROPERTY: header-args:shell :tangle "setup.sh"
+#+PROPERTY: header-args :tangle no :results silent
+#+HTML_HEAD: <link rel='shortcut icon' type='image/png' href='https://www.gnu.org/software/emacs/favicon.png'>
+
+* Rudimentary configuration
+Make this file run (slightly) faster with lexical binding (see [[https://nullprogram.com/blog/2016/12/22/][this blog post]]
+for more info).
+#+BEGIN_SRC emacs-lisp :comments no
+;;; config.el -*- lexical-binding: t; -*-
+#+END_SRC
+** Personal Information
+It's useful to have some basic personal information
+#+BEGIN_SRC emacs-lisp
+(setq user-full-name "Robert den Harink"
+      user-mail-address "robert@robhar.com")
+#+END_SRC
+** Better defaults
+*** Simple settings
+Browsing the web and seeing [[https://github.com/angrybacon/dotemacs/blob/master/dotemacs.org#use-better-defaults][angrybacon/dotemacs]] and comparing with the values
+shown by =SPC h v= and selecting what I thought looks good, I've ended up adding the following:
+#+BEGIN_SRC emacs-lisp
+(setq-default
+ delete-by-moving-to-trash t                      ; Delete files to trash
+ tab-width 4                                      ; Set width for tabs
+ uniquify-buffer-name-style 'forward              ; Uniquify buffer names
+ window-combination-resize t                      ; take new window space from all other windows (not just current)
+ x-stretch-cursor t)                              ; Stretch cursor to the glyph width
+
+(setq undo-limit 80000000                         ; Raise undo-limit to 80Mb
+      evil-want-fine-undo t                       ; By default while in insert all changes are one big blob. Be more granular
+      auto-save-default t                         ; Nobody likes to loose work, I certainly don't
+      inhibit-compacting-font-caches t            ; When there are lots of glyphs, keep them in memory
+      org-directory "~/org/"
+      truncate-string-ellipsis "…")               ; Unicode ellispis are nicer than "...", and also save /precious/ space
+
+(delete-selection-mode 1)                         ; Replace selection when inserting text
+(display-time-mode 1)                             ; Enable time in the mode-line
+(display-battery-mode 1)                          ; On laptops it's nice to know how much power you have
+(global-subword-mode 1)                           ; Iterate through CamelCase words
+#+END_SRC
+*** Auto-customisations
+By default changes made via a customisation interface are added to =init.el=.
+I prefer the idea of using a separate file for this. We just need to change a
+setting, and load it if it exists.
+#+BEGIN_SRC emacs-lisp
+(setq-default custom-file (expand-file-name ".custom.el" doom-private-dir))
+(when (file-exists-p custom-file)
+  (load custom-file))
+#+END_SRC
+*** Windows
+I find it rather handy to be asked which buffer I want to see after splitting
+the window. Let's make that happen.
+First, we'll enter the new window
+#+BEGIN_SRC emacs-lisp
+(setq evil-vsplit-window-right t
+      evil-split-window-below t)
+#+END_SRC
+Then, we'll pull up ~ivy~
+#+BEGIN_SRC emacs-lisp
+(defadvice! prompt-for-buffer (&rest _)
+  :after '(evil-window-split evil-window-vsplit)
+  (+ivy/switch-buffer))
+#+END_SRC
+Oh, and previews are nice
+#+BEGIN_SRC emacs-lisp
+(setq +ivy-buffer-preview t)
+#+END_SRC
+*** Buffer defaults
+I'd much rather have my new buffers in ~org-mode~ than ~fundamental-mode~, hence
+#+BEGIN_SRC emacs-lisp
+;; (setq-default major-mode 'org-mode)
+#+END_SRC
+For some reason this + the mixed pitch hook causes issues with hydra and so I'll
+just need to resort to =SPC b o= for now.
+** Doom configuration
+*** Visual Settings
+**** Font Face
+'Fira Code' is nice, and 'Overpass' makes for a nice sans companion. We just need to
+fiddle with the font sizes a tad so that they visually match.
+#+BEGIN_SRC emacs-lisp
+(setq doom-font (font-spec :family "IBM Plex Mono Text" :size 14)
+      doom-variable-pitch-font (font-spec :family "IBM Plex Sans" :size 16))
+#+END_SRC
+**** Theme
+#+BEGIN_SRC emacs-lisp
+(setq doom-theme 'doom-palenight)
+#+END_SRC
+However, by default ~red~ text is used in the ~modeline~, so let's make that orange
+so I don't feel like something's gone /wrong/ when editing files.
+#+BEGIN_SRC emacs-lisp
+(custom-set-faces!
+  '(doom-modeline-buffer-modified :foreground "orange"))
+#+END_SRC
+**** Miscellaneous
+Line numbers are slow
+#+BEGIN_SRC emacs-lisp
+(setq display-line-numbers-type 'nil)
+#+END_SRC
+I'd like some slightly nicer default buffer names
+#+BEGIN_SRC emacs-lisp
+(setq doom-fallback-buffer-name "► Doom"
+      +doom-dashboard-name "► Doom")
+#+END_SRC
+There's a bug with the modeline in insert mode for org documents ([[https://github.com/seagle0128/doom-modeline/issues/300][issue]]), so
+#+BEGIN_SRC emacs-lisp
+(custom-set-faces! '(doom-modeline-evil-insert-state :weight bold :foreground "#339CDB"))
+#+END_SRC
+*** Some helper macros
+There are a few handy macros added by doom, namely
+- ~load!~ for loading external ~.el~ files relative to this one
+- ~use-package~ for configuring packages
+- ~add-load-path!~ for adding directories to the ~load-path~ where ~emacs~ looks when
+  you load packages with ~require~ or ~use-package~
+- ~map~ for binding new keys
+To find more,
+** Other things
+*** Editor interaction
+**** Mouse buttons
+#+BEGIN_SRC emacs-lisp
+(map! :n [mouse-8] #'better-jumper-jump-backward
+      :n [mouse-9] #'better-jumper-jump-forward)
+#+END_SRC
+*** Window title
+I'd like to have just the buffer name, then if applicable the project folder
+#+BEGIN_SRC emacs-lisp
+(setq frame-title-format
+    '(""
+      (:eval
+       (if (s-contains-p org-roam-directory (or buffer-file-name ""))
+           (replace-regexp-in-string ".*/[0-9]+-" "🢔 " buffer-file-name)
+         "%b"))
+      (:eval
+       (let ((project-name (projectile-project-name)))
+         (unless (string= "-" project-name)
+           (format (if (buffer-modified-p)  " ◉ %s" "  ●  %s") project-name))))))
+#+END_SRC
+* Package loading
+:PROPERTIES:
+:header-args:emacs-lisp: :tangle "packages.el" :comments link
+:END:
+This file shouldn't be byte compiled.
+#+BEGIN_SRC emacs-lisp :tangle "packages.el" :comments no
+;; -*- no-byte-compile: t; -*-
+#+END_SRC
+** Loading instructions
+:PROPERTIES:
+:header-args:emacs-lisp: :tangle no
+:END:
+This is where you install packages, by declaring them with the ~package!~
+macro, then running ~doom refresh~ on the command line. You'll need to
+restart Emacs for your changes to take effect! Or at least, run =M-x doom/reload=.
+
+WARNING: Don't disable core packages listed in ~~/.emacs.d/core/packages.el~.
+Doom requires these, and disabling them may have terrible side effects.
+
+*** Packages in MELPA/ELPA/emacsmirror
+To install ~some-package~ from MELPA, ELPA or emacsmirror:
+#+BEGIN_SRC emacs-lisp
+(package! some-package)
+#+END_SRC
+
+*** Packages from git repositories
+To install a package directly from a particular repo, you'll need to specify
+a ~:recipe~. You'll find documentation on what ~:recipe~ accepts [[https://github.com/raxod502/straight.el#the-recipe-format][here]]:
+#+BEGIN_SRC emacs-lisp
+(package! another-package
+  :recipe (:host github :repo "username/repo"))
+#+END_SRC
+
+If the package you are trying to install does not contain a ~PACKAGENAME.el~
+file, or is located in a subdirectory of the repo, you'll need to specify
+~:files~ in the ~:recipe~:
+#+BEGIN_SRC emacs-lisp
+(package! this-package
+  :recipe (:host github :repo "username/repo"
+           :files ("some-file.el" "src/lisp/*.el")))
+#+END_SRC
+
+*** Disabling built-in packages
+If you'd like to disable a package included with Doom, for whatever reason,
+you can do so here with the ~:disable~ property:
+#+BEGIN_SRC emacs-lisp
+(package! builtin-package :disable t)
+#+END_SRC
+You can override the recipe of a built in package without having to specify
+all the properties for ~:recipe~. These will inherit the rest of its recipe
+from Doom or MELPA/ELPA/Emacsmirror:
+#+BEGIN_SRC emacs-lisp
+(package! builtin-package :recipe (:nonrecursive t))
+(package! builtin-package-2 :recipe (:repo "myfork/package"))
+#+END_SRC
+
+Specify a ~:branch~ to install a package from a particular branch or tag.
+This is required for some packages whose default branch isn't 'master' (which
+our package manager can't deal with; see [[https://github.com/raxod502/straight.el/issues/279][raxod502/straight.el#279]])
+#+BEGIN_SRC emacs-lisp
+(package! builtin-package :recipe (:branch "develop"))
+#+END_SRC
+** General packages
+*** Prettification
+~prettify-mode~ is nice and all, but adding substitutions is a little verbose.
+This helps with that.
+#+BEGIN_SRC emacs-lisp
+(package! prettify-utils ; simplify messing with prettify-mode
+  :recipe (:host github :repo "Ilazki/prettify-utils.el") :pin "8b783d316c23bffdf2b9e6f52635482c4812ee43")
+#+END_SRC
+
+Use org bullets to prettify title bullets etc.
+#+BEGIN_SRC emacs-lisp
+(package! org-bullets)
+#+END_SRC
+
+Completion with icons for company
+#+BEGIN_SRC emacs-lisp
+(package! company-box)
+#+END_SRC
+*** Window management
+#+BEGIN_SRC emacs-lisp
+(package! rotate :pin "091b5ac4fc310773253efb317e3dbe8e46959ba6")
+#+END_SRC
+*** Improving features
+**** Flyspell-lazy
+To alleviate some [[Flyspell][issues with flyspell]]
+#+BEGIN_SRC emacs-lisp
+(package! flyspell-lazy :pin "3ebf68cc9eb10c972a2de8d7861cbabbbce69570")
+#+END_SRC
+**** CalcTeX
+This is a nice extension to ~calc~
+#+BEGIN_SRC emacs-lisp
+(package! calctex :recipe (:host github :repo "johnbcoughlin/calctex"
+                                 :files ("*.el")) :pin "542b628eb4a5d1e74476e0ce29ce7db8f5d9ab4f")
+#+END_SRC
+**** ESS
+View data frames better with
+#+BEGIN_SRC emacs-lisp
+(package! ess-view :pin "d4e5a340b7bcc58c434867b97923094bd0680283")
+#+END_SRC
+**** Magit Delta
+[[https://github.com/dandavison/delta/][Delta]] is a git diff syntax highlighter written in rust. The author also wrote a
+package to hook this into the magit diff view. This requires the ~delta~ binary.
+#+BEGIN_SRC emacs-lisp
+;;(package! magit-delta :recipe (:host github :repo "dandavison/magit-delta") :pin "075d643691")
+#+END_SRC
+**** Info colours
+This makes manual pages nicer to look at :)
+Variable pitch fontification + colouring
+#+BEGIN_SRC emacs-lisp
+(package! info-colors :pin "47ee73cc19b1049eef32c9f3e264ea7ef2aaf8a5")
+#+END_SRC
+*** Pretty-mode
+For ligatures
+#+BEGIN_SRC emacs-lisp
+(package! pretty-mode)
+#+END_SRC
+*** VTerm
+We should install libvterm first
+#+BEGIN_SRC shell
+sudo apt install libvterm0 libtool libtool-bin
+#+END_SRC
+*** Zetteldeft(use-package webkit-color-picker
+#+BEGIN_SRC emacs-lisp
+(package! zetteldeft)
+#+END_SRC
+*** Colorpicker
+#+BEGIN_SRC emacs-lisp
+(package! webkit-color-picker)
+#+END_SRC
+** Language packages
+*** Typescript
+#+BEGIN_SRC emacs-lisp
+(package! tide)
+#+END_SRC
+*** Rust
+I want to use Rust analyzer for autocompletion etc.
+
+Lets install the latest version of rust-analyzer first:
+#+BEGIN_SRC shell
+curl -L https://github.com/rust-analyzer/rust-analyzer/releases/latest/download/rust-analyzer-linux -o ~/.local/bin/rust-analyzer
+chmod +x ~/.local/bin/rust-analyzer
+#+END_SRC
+* Package configuration
+** Abbrev mode
+Thanks to [[https://emacs.stackexchange.com/questions/45462/use-a-single-abbrev-table-for-multiple-modes/45476#45476][use a single abbrev-table for multiple modes? - Emacs Stack Exchange]] I
+have the following.
+#+BEGIN_SRC emacs-lisp
+(use-package abbrev
+  :init
+  (setq-default abbrev-mode t)
+  ;; a hook funtion that sets the abbrev-table to org-mode-abbrev-table
+  ;; whenever the major mode is a text mode
+  (defun tec/set-text-mode-abbrev-table ()
+    (if (derived-mode-p 'text-mode)
+        (setq local-abbrev-table org-mode-abbrev-table)))
+  :commands abbrev-mode
+  :hook
+  (abbrev-mode . tec/set-text-mode-abbrev-table)
+  :config
+  (setq abbrev-file-name (expand-file-name "abbrev.el" doom-private-dir))
+  (setq save-abbrevs 'silently))
+#+END_SRC
+** Calc
+Radians are just better
+#+BEGIN_SRC emacs-lisp
+(setq calc-angle-mode 'rad  ;; radians are rad
+      calc-algebraic-mode t ;; allows '2*x instead of 'x<RET>2*
+      calc-symbolic-mode t) ;; keeps stuff like √2 irrational for as long as possible
+(after! calctex
+  (setq calctex-format-latex-header (concat calctex-format-latex-header
+                                            "\n\\usepackage{arevmath}")))
+(add-hook 'calc-mode-hook #'calctex-mode)
+#+END_SRC
+** Centaur Tabs
+We want to make the tabs a nice, comfy size (~36~), with icons. The modifier
+marker is nice, but the particular default Unicode one causes a lag spike, so
+let's just switch to an ~o~, which still looks decent but doesn't cause any
+issues.
+A 'active-bar' is nice, so let's have one of those. If we have it ~under~ needs us to
+turn on ~x-underline-at-decent~ though. For some reason this didn't seem to work
+inside the ~(after! ... )~ block ¯\_(ツ)_/¯.
+Then let's change the font to a sans serif, but the default one doesn't fit too
+well somehow, so let's switch to 'P22 Underground Book'; it looks much nicer.
+#+BEGIN_SRC emacs-lisp
+(after! centaur-tabs
+  (centaur-tabs-mode -1)
+  (setq centaur-tabs-height 36
+        centaur-tabs-set-icons t
+        centaur-tabs-modified-marker "o"
+        centaur-tabs-close-button "×"
+        centaur-tabs-set-bar 'above)
+        centaur-tabs-gray-out-icons 'buffer
+  (centaur-tabs-change-fonts "P22 Underground Book" 160))
+;; (setq x-underline-at-descent-line t)
+#+END_SRC
+** Company
+It's nice to have completions almost all the time, in my opinion. Key strokes
+are just waiting to be saved!
+#+BEGIN_SRC emacs-lisp
+(after! company
+  (setq company-idle-delay 0.2)
+(add-hook 'evil-normal-state-entry-hook #'company-abort)) ;; make aborting less annoying.
+#+END_SRC
+Now, the improvements from ~precident~ are mostly from remembering history, so
+let's improve that memory.
+#+BEGIN_SRC emacs-lisp
+(setq-default history-length 1000)
+(setq-default prescient-history-length 1000)
+#+END_SRC
+Enable company-box
+#+BEGIN_SRC emacs-lisp
+(use-package company-box
+  :hook (company-mode . company-box-mode))
+#+END_SRC
+*** Plain Text
+~ispell~ is nice, let's have it in ~text~, ~markdown~, and ~GFM~.
+#+BEGIN_SRC emacs-lisp
+(set-company-backend! '(text-mode
+                        markdown-mode
+                        gfm-mode)
+  '(:seperate company-ispell
+              company-files
+              company-yasnippet))
+#+END_SRC
+We then configure the dictionary we're using in [[*Ispell][ispell]].
+*** ESS
+~company-dabbrev-code~ is nice. Let's have it.
+#+BEGIN_SRC emacs-lisp
+(set-company-backend! 'ess-r-mode '(company-R-args company-R-objects company-dabbrev-code :separate))
+#+END_SRC
+** Deft
+#+BEGIN_SRC emacs-lisp
+(use-package! deft
+  :after org
+  :custom
+  (deft-recursive t)
+  (deft-extensions '("org" "md" "txt"))
+  (deft-default-extension "org")
+  (deft-directory (concat org-directory "/notes"))
+  :init
+  (setq deft-file-naming-rules '( (noslash . "-") ))
+  (setq deft-strip-summary-regexp
+    (concat "\\("
+            "[\n\t]" ;; blank
+            "\\|^#\\+[a-zA-Z_]+:.*$" ;;org-mode metadata
+            "\\)"))
+  )
+#+END_SRC
+** Elcord
+#+BEGIN_SRC emacs-lisp
+(setq elcord-use-major-mode-as-main-icon t)
+#+END_SRC
+** Eros-eval
+This makes the result of evals with =gr= and =gR= just slightly prettier. Every bit
+counts right?
+#+BEGIN_SRC emacs-lisp
+(setq eros-eval-result-prefix "⟹ ")
+#+END_SRC
+** Flyspell
+At one point, typing became noticeably laggy, Profiling revealed
+~flyspell-post-command-hook~ was responsible for 47% of CPU cycles by itself!
+So I'm going to make use of ~flyspell-lazy~
+#+BEGIN_SRC emacs-lisp
+(after! flyspell (require 'flyspell-lazy) (flyspell-lazy-mode 1))
+#+END_SRC
+** Info colors
+#+BEGIN_SRC emacs-lisp
+(use-package! info-colors
+  :commands (info-colors-fontify-node))
+
+(add-hook 'Info-selection-hook 'info-colors-fontify-node)
+
+(add-hook 'Info-mode-hook #'mixed-pitch-mode)
+#+END_SRC
+** Ispell
+Let's get a nice big dictionary from [[http://app.aspell.net/create][SCOWL Custom List/Dictionary Creator]] with
+the following configuration
+ - size :: 80 (huge)
+ - spellings :: British(-ise) and Australian
+ - spelling variants level :: 0
+ - diacritics :: keep
+ - extra lists :: hacker, roman numerals
+#+BEGIN_SRC emacs-lisp
+;;(setq ispell-dictionary "en_GBs_au_SCOWL_80_0_k_hr")
+#+END_SRC
+Oh, and by the way, if ~company-ispell-dictionary~ is ~nil~, then
+~ispell-complete-word-dict~ is used instead, which once again when ~nil~ is
+~ispell-alternate-dictionary~, which at the moment maps to a plaintext version of
+the above.
+
+It seems reasonable to want to keep an eye on my personal dict, let's have it
+nearby (also means that if I change the 'main' dictionary I keep my addition).
+#+BEGIN_SRC emacs-lisp
+(setq ispell-personal-dictionary (expand-file-name ".hunspell_personal" doom-private-dir))
+#+END_SRC
+** Magit
+Magit is pretty nice by default. The diffs don't get any
+syntax-highlighting-love though which is a bit sad. Thankfully
+[[https://github.com/dandavison/magit-delta][dandavison/magit-delta]] exists, which we can put to use.
+#+BEGIN_SRC emacs-lisp
+;;(after! magit
+;;  (magit-delta-mode +1))
+#+END_SRC
+Unfortunately this seems to mess things up, which is something I'll want to look
+into later.
+** Org
+First, we ask org-mode to hide the emphasis markup (e.g. /.../ for italics,
+*...* for bold, etc.):
+#+BEGIN_SRC emacs-lisp
+(setq org-hide-emphasis-markers t)
+#+END_SRC
+
+Then, we set up a font-lock substitution for list markers (I always use “-” for
+lists, but you can change this if you want) by replacing them with a
+centered-dot character:
+#+BEGIN_SRC emacs-lisp
+(font-lock-add-keywords 'org-mode
+                        '(("^ *\\([-]\\) "
+                           (0 (prog1 () (compose-region (match-beginning 1) (match-end 1) "•"))))))
+#+END_SRC
+
+The org-bullets package replaces all headline markers with different Unicode bullets:
+#+BEGIN_SRC emacs-lisp
+(use-package org-bullets
+  :config
+  (add-hook 'org-mode-hook (lambda () (org-bullets-mode 1))))
+#+END_SRC
+
+You can enable variable-pitch-mode automatically for org buffers by setting up a hook like this:
+#+BEGIN_SRC emacs-lisp
+(add-hook 'org-mode-hook 'variable-pitch-mode)
+(add-hook 'org-mode-hook 'visual-line-mode)
+#+END_SRC
+
+#+BEGIN_SRC emacs-lisp
+(eval-after-load "org"
+    (custom-theme-set-faces
+        'user
+        '(org-level-8 ((t (:inherit default :weight bold  :height 1))))
+        '(org-level-7 ((t (:inherit default :weight bold  :height 1))))
+        '(org-level-6 ((t (:inherit default :weight bold  :height 1))))
+        '(org-level-5 ((t (:inherit default :weight bold  :height 1))))
+        '(org-level-4 ((t (:inherit default :weight bold  :height 1))))
+        '(org-level-3 ((t (:inherit default :weight bold  :height 1.1))))
+        '(org-level-2 ((t (:inherit default :weight bold  :height 1.25))))
+        '(org-level-1 ((t (:inherit default :weight bold :height 1.5))))
+        '(org-document-title ((t (:inherit default :weight bold  :height 1.75))))
+        '(org-block ((t (:inherit fixed-pitch))))
+        '(org-code ((t (:inherit (shadow fixed-pitch)))))
+        '(org-document-info ((t (:foreground "dark orange"))))
+        '(org-document-info-keyword ((t (:inherit (shadow fixed-pitch)))))
+        '(org-indent ((t (:inherit (org-hide fixed-pitch)))))
+        '(org-link ((t (:foreground "royal blue" :underline t))))
+        '(org-meta-line ((t (:inherit (font-lock-comment-face fixed-pitch)))))
+        '(org-property-value ((t (:inherit fixed-pitch))) t)
+        '(org-special-keyword ((t (:inherit (font-lock-comment-face fixed-pitch)))))
+        '(org-table ((t (:inherit fixed-pitch :foreground "#83a598"))))
+        '(org-tag ((t (:inherit (shadow fixed-pitch) :weight bold :height 0.8))))
+        '(org-verbatim ((t (:inherit (shadow fixed-pitch))))))
+)
+
+#+END_SRC
+** Pretty Mode
+Enable font ligatures
+#+BEGIN_SRC emacs-lisp
+(use-package! pretty-mode
+  :init
+  (global-pretty-mode t)
+  )
+#+END_SRC
+** Smart Parentheses
+#+BEGIN_SRC emacs-lisp
+(sp-local-pair
+     '(org-mode)
+     "<<" ">>"
+     :actions '(insert))
+#+END_SRC
+** Which-key
+Let's make this popup a bit faster
+#+BEGIN_SRC emacs-lisp
+(setq which-key-idle-delay 0.5) ;; I need the help, I really do
+#+END_SRC
+I also think that having =evil-= appear in so many popups is a bit too verbose, let's change that, and do a few other similar tweaks while we're at it.
+#+BEGIN_SRC emacs-lisp
+(setq which-key-allow-multiple-replacements t)
+(after! which-key
+  (pushnew!
+   which-key-replacement-alist
+   '(("" . "\\`+?evil[-:]?\\(?:a-\\)?\\(.*\\)") . (nil . "◂\\1"))
+   '(("\\`g s" . "\\`evilem--?motion-\\(.*\\)") . (nil . "◃\\1"))
+   ))
+#+END_SRC
+** YASnippet
+Nested snippets are good, enable that.
+#+BEGIN_SRC emacs-lisp
+(setq yas-triggers-in-field t)
+#+END_SRC
+** Zetteldeft
+#+BEGIN_SRC emacs-lisp
+(use-package! zetteldeft
+  :commands (zetteldeft-new-file
+             zetteldeft-tag-buffer
+             zetteldeft-search-at-point
+             zetteldeft-find-file
+             zetteldeft-search-current-id
+             zetteldeft-follow-link
+             zetteldeft-avy-tag-search
+             zetteldeft-new-file-and-link
+             zetteldeft-file-rename
+             zetteldeft-find-file-id-insert
+             zetteldeft-find-file-full-title-insert
+             zetteldeft-search-at-point
+             zetteldeft-avy-link-search
+             zetteldeft-avy-file-search-ace-window
+             zetteldeft-find-file)
+  :init
+  (map! :leader
+        :prefix ("d" . "zetteldeft")
+        :desc "deft" "d" #'deft
+        :desc "zetteldeft-deft-new-search" "D" #'zetteldeft-new-file
+        :desc "deft-refresh" "R" #'deft-refresh
+        :desc "zetteldeft-search-at-point" "s" #'zetteldeft-search-at-point
+        :desc "zetteldeft-search-current-id" "c" #'zetteldeft-search-current-id
+        :desc "zetteldeft-follow-link" "f" #'zetteldeft-follow-link
+        :desc "zetteldeft-avy-file-search-ace-window" "F" #'zetteldeft-avy-file-search-ace-window
+        :desc "zetteldeft-avy-link-search" "l" #'zetteldeft-avy-link-search
+        :desc "zetteldeft-avy-tag-search" "t" #'zetteldeft-avy-tag-search
+        :desc "zetteldeft-tag-buffer" "T" #'zetteldeft-tag-buffer
+        :desc "zetteldeft-find-file-id-insert" "i" #'zetteldeft-find-file-id-insert
+        :desc "zetteldeft-find-file-full-title-insert" "I" #'zetteldeft-find-file-full-title-insert
+        :desc "zetteldeft-find-file" "o" #'zetteldeft-find-file
+        :desc "zetteldeft-new-file" "n" #'zetteldeft-new-file
+        :desc "zetteldeft-new-file-and-link" "N" #'zetteldeft-new-file-and-link
+        :desc "zetteldeft-file-rename" "r" #'zetteldeft-file-rename
+        :desc "zetteldeft-count-words" "x" #'zetteldeft-count-words
+        )
+  )
+#+END_SRC
+** Colorpicker
+#+BEGIN_SRC emacs-lisp
+(use-package webkit-color-picker
+  :bind (("C-c C-p" . webkit-color-picker-show)))
+#+END_SRC
+* Language configuration
+*** File Templates
+For some file types, we overwrite defaults in the [[file:./snippets][snippets]] directory, others
+need to have a template assigned.
+#+BEGIN_SRC emacs-lisp
+(set-file-template! "\\.tex$" :trigger "__" :mode 'latex-mode)
+#+END_SRC
+** Plaintext
+It's nice to see ansi colour codes displayed
+#+BEGIN_SRC emacs-lisp
+(after! text-mode
+  (add-hook! 'text-mode-hook
+    ;; Apply ANSI color codes
+    (with-silent-modifications
+      (ansi-color-apply-on-region (point-min) (point-max)))))
+#+END_SRC
+** Rust
+#+BEGIN_SRC emacs-lisp
+(use-package lsp-rust
+    :after lsp-mode
+    :init
+    (setq rustic-lsp-server 'rust-analyzer)
+    (setq lsp-rust-server 'rust-analyzer))
+
+(after! rustic-mode (setq rustic-lsp-server 'rust-analyzer))
+#+END_SRC
+** Typescript
+#+BEGIN_SRC emacs-lisp
+(use-package tide
+  :after (typescript-mode company flycheck)
+  :hook ((typescript-mode . tide-setup)
+         (typescript-mode . tide-hl-identifier-mode)
+         (before-save . tide-format-before-save)))
+#+END_SRC

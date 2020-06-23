@@ -35,6 +35,8 @@ window:
     x: 5
     y: 5
 
+  decorations: full
+
   # Spread additional padding evenly around the terminal content.
 
 scrolling:
@@ -67,7 +69,7 @@ font:
     style: Italic
 
   # Point size of the font
-  size: 14.0
+  size: 12.0
 
   # Offset is the extra space around each character. offset.y can be thought of
   # as modifying the linespacing, and offset.x as modifying the letter spacing.
@@ -230,10 +232,10 @@ mouse:
 # You can set shell.program to the path of your favorite shell, e.g. /bin/fish.
 # Entries in shell.args are passed unmodified as arguments to the shell.
 #
-# shell:
-#   program: /bin/bash
-#   args:
-#     - --login
+shell:
+  program: fish
+  args:
+    - -C neofetch
 
 # Key bindings
 #

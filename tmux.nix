@@ -22,7 +22,7 @@
       set-option -g mouse on
 
       # Use default shell
-      set-option -g default-shell ''${SHELL}
+      set-option -g default-shell /home/robert/.nix-profile/bin/fish
 
       # Extra Vi friendly stuff
       # y and p as in vim
