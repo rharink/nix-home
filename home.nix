@@ -27,6 +27,7 @@ with lib;
     ./fish
     # TODO: Running containers is a mess on NixOS
     #./podman
+    ./bump2version
     ./emacs
     ./htop.nix
     ./tmux.nix
