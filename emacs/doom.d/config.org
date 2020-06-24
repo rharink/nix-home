@@ -477,11 +477,11 @@ You can enable variable-pitch-mode automatically for org buffers by setting up a
 (eval-after-load "org"
     (custom-theme-set-faces
         'user
-        '(org-level-8 ((t (:inherit default :weight bold  :height 1))))
-        '(org-level-7 ((t (:inherit default :weight bold  :height 1))))
-        '(org-level-6 ((t (:inherit default :weight bold  :height 1))))
-        '(org-level-5 ((t (:inherit default :weight bold  :height 1))))
-        '(org-level-4 ((t (:inherit default :weight bold  :height 1))))
+        '(org-level-8 ((t (:inherit default :weight bold  :height 1.1))))
+        '(org-level-7 ((t (:inherit default :weight bold  :height 1.1))))
+        '(org-level-6 ((t (:inherit default :weight bold  :height 1.1))))
+        '(org-level-5 ((t (:inherit default :weight bold  :height 1.1))))
+        '(org-level-4 ((t (:inherit default :weight bold  :height 1.1))))
         '(org-level-3 ((t (:inherit default :weight bold  :height 1.1))))
         '(org-level-2 ((t (:inherit default :weight bold  :height 1.25))))
         '(org-level-1 ((t (:inherit default :weight bold :height 1.5))))
