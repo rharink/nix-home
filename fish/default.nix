@@ -93,6 +93,7 @@ in {
     ".config/fish/functions/fenv.parse.before.fish".source = ./functions/fenv.parse.before.fish;
     ".config/fish/functions/fenv.parse.diff.fish".source = ./functions/fenv.parse.diff.fish;
     ".config/fish/functions/fenv.parse.divider.fish".source = ./functions/fenv.parse.divider.fish;
+    ".config/fish/functions/vault_ssh_sign.fish".source = ./functions/vault_ssh_sign.fish;
   };
 
   programs.fish.shellAliases = {

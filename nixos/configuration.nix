@@ -129,6 +129,7 @@
   # Enable sound.
   sound.enable = true;
   hardware.pulseaudio.enable = true;
+  hardware.u2f.enable = true;
 
   # Enable the X11 windowing system.
   services.xserver.enable = true;
@@ -143,18 +144,36 @@
   services.xserver.desktopManager.gnome3.enable = true;
 
   # Enable the KDE Desktop Environment.
-  # services.xserver.displayManager.sddm.enable = true;
-  # services.xserver.desktopManager.plasma5.enable = true;
+  #services.xserver.displayManager.sddm.enable = true;
+  #services.xserver.desktopManager.plasma5.enable = true;
+
+  virtualisation.docker.enable = true;
 
   # Define a user account. Don't forget to set a password with ‘passwd’.
   users.users.robert = {
      isNormalUser = true;
-     extraGroups = [ "wheel" ]; # Enable ‘sudo’ for the user.
+     extraGroups = [ "wheel" "docker" ]; # Enable ‘sudo’ for the user.
 
      # For containers
      subUidRanges = [{ startUid = 100000; count = 65536; }];
      subGidRanges = [{ startGid = 100000; count = 65536; }];
   };
+
+  services.udev.packages = [
+    pkgs.yubikey-personalization
+    pkgs.libu2f-host
+  ];
+
+  environment.systemPackages = with pkgs; [
+    libu2f-host
+  ];
+
+  # Add extra rules for plugdev (allow yubikey 2fa)
+  # services.udev = {
+  #   extraRules = ''
+  #   KERNEL=="hidraw*", SUBSYSTEM=="hidraw", MODE="0660", GROUP="plugdev", ATTRS{idVendor}=="1050"
+  #   '';
+  # };
 
   # This value determines the NixOS release from which the default
   # settings for stateful data, like file locations and database versions

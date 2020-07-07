@@ -46,6 +46,7 @@ with lib;
     pkgs.editorconfig-checker
     pkgs.editorconfig-core-c
     pkgs.direnv
+    pkgs.usbutils
 
     # Rust cli tools
     pkgs.exa
@@ -97,6 +98,10 @@ with lib;
     postman
     unstable.jetbrains.phpstorm
     unstable.jetbrains.clion
+    inkscape
+    unstable.drawio
+    pkgs.graphviz
+    pkgs.kcachegrind
 
     # Network
     #openconnect
