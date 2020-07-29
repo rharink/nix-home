@@ -4,6 +4,7 @@ with import <nixpkgs> {};
 with builtins;
 with lib;
 
+
 {
   # Let Home Manager install and manage itself.
   programs.home-manager.enable = true;
@@ -47,6 +48,8 @@ with lib;
     pkgs.editorconfig-core-c
     pkgs.direnv
     pkgs.usbutils
+	  pkgs.git-crypt
+    pkgs.vifm
 
     # Rust cli tools
     pkgs.exa
@@ -83,9 +86,16 @@ with lib;
     pkgs.vlc
     pkgs.rtv # Reddit
 
+    # VSCode
+    (unstable.vscode-with-extensions.override {
+      vscodeExtensions = with vscode-extensions; [
+        bbenoist.Nix
+      ];
+    })
+
     # Programs
     unstable.slack
-    pkgs.vscode
+    unstable.dropbox
     pkgs.sublime3
     pkgs.sublime-merge
     pkgs.keybase
@@ -102,10 +112,10 @@ with lib;
     unstable.drawio
     pkgs.graphviz
     pkgs.kcachegrind
+    unstable.blender
+    unstable.zoom
 
     # Network
-    #openconnect
-    #openvpn
     nmap
 
     # Writing
